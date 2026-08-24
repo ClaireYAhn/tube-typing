@@ -105,14 +105,15 @@ changes to what is there.
 
 ## Menu backdrop
 
-The menu sits on a faint tube map. By default this is the network drawn from open
-coordinates by `src/map/`, the same layout the game runs the train over.
+The menu sits on a faint tube map: `public/tube-map-tfl.jpg`, which is TfL's own artwork
+from the [standard tube map PDF](https://content.tfl.gov.uk/standard-tube-map.pdf),
+cropped to the diagram. That artwork is TfL's copyright and is used here for a personal,
+non-commercial project with attribution below. If you are forking this for anything with
+a commercial dimension, delete that file and read
+[tfl.gov.uk/maplicensing](https://tfl.gov.uk/maplicensing).
 
-TfL's own artwork can be used instead, locally. Save the first page of the
-[standard tube map PDF](https://content.tfl.gov.uk/standard-tube-map.pdf) as
-`public/tube-map-tfl.jpg` and `MapBackdrop` will pick it up on the next reload; delete it
-and the drawn map comes back. That file is gitignored on purpose. TfL publish the map for
-personal use, which a local copy is, so it is not committed here or shipped to a deploy.
+Deleting it is safe: `MapBackdrop` falls back to the network drawn from open coordinates
+by `src/map/`, the same layout the game runs the train over.
 
 ## Attribution
 

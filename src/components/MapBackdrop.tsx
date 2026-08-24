@@ -3,16 +3,16 @@
  *
  * Two sources, in order of preference:
  *
- *   1. `public/tube-map-tfl.jpg` — Transport for London's own artwork, if it is present.
- *      It is deliberately kept out of version control (see .gitignore and the README), so
- *      a fresh clone and any CI build will not have it. TfL publish the map for personal
- *      use, which a local copy is; redistributing it from this repo or a deployed site
- *      would be something else.
- *   2. Otherwise the network drawn from open coordinates, by the same `src/map/` layout
- *      the game itself runs the train over.
+ *   1. `public/tube-map-tfl.jpg`, Transport for London's own artwork, cropped to the
+ *      diagram. This is TfL's copyright, used here at the project owner's decision for a
+ *      personal, non-commercial build with attribution in the footer. Anything with a
+ *      commercial dimension needs to drop it and use the drawn map below; see
+ *      tfl.gov.uk/maplicensing.
+ *   2. If that file is missing or fails to load, the network drawn from open coordinates
+ *      by the same `src/map/` layout the game runs the train over.
  *
- * Which means the menu looks right whether or not the JPG is there, and nothing has to be
- * configured for a checkout to work.
+ * The fallback is kept even though the artwork is committed, because a backdrop is not
+ * worth a blank menu if the image ever fails to fetch.
  */
 
 import { useState } from 'react'

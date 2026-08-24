@@ -22,10 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Transport for London's own tube map artwork, used as the menu backdrop when present.
-# TfL publish it for personal use, so a local copy is fine, but shipping it from this
-# repository would be redistribution. Without it the menu falls back to the map drawn
-# from open coordinates in src/map/ — see src/components/MapBackdrop.tsx.
-# To use the real thing locally, see "Menu backdrop" in the README.
-public/tube-map-tfl.jpg
