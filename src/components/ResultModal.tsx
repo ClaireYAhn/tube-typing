@@ -35,6 +35,7 @@ export function ResultModal({ summary, isBest, previous, boardKey, onRetry, onMe
   const score = useScoreSubmission(boardKey, summary)
   // Opens on the shared board, which is the more interesting question after a run.
   const [scope, setScope] = useState<Scope>('global')
+  const [copied, setCopied] = useState(false)
   const shown = scope === 'global' ? score.global : score.local
 
   // Move focus in so the dialog is immediately keyboard-operable, and let Escape close.
@@ -160,6 +161,26 @@ export function ResultModal({ summary, isBest, previous, boardKey, onRetry, onMe
           </section>
         ) : summary.stations > 0 && summary.errors === 0 ? (
           <p className="result__clean">Clean run — not a single wrong key.</p>
+        ) : null}
+
+        {summary.share ? (
+          <section className="share">
+            <pre className="share__text">{summary.share}</pre>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                // Clipboard access can be refused outright, and a silent failure would
+                // look like the button does nothing.
+                navigator.clipboard
+                  .writeText(summary.share!)
+                  .then(() => setCopied(true))
+                  .catch(() => setCopied(false))
+              }}
+            >
+              {copied ? 'Copied' : 'Copy result'}
+            </button>
+          </section>
         ) : null}
 
         <div className="result__actions">

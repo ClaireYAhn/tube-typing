@@ -12,6 +12,11 @@ import { accuracy, kpm, wpm } from '../engine/scoring.ts'
 import { elapsedMs as roamElapsed, type FreeRoamState } from '../engine/freeRoam.ts'
 import { elapsedMs, troubleSpots, type SessionState } from '../engine/session.ts'
 import type { MatchMode } from '../engine/matcher.ts'
+import { elapsedMs as journeyElapsed, overPar, type JourneyState } from '../engine/journey.ts'
+import { describePuzzle } from './daily.ts'
+import { sharedGraph } from '../routing/graph.ts'
+import { findJourney } from '../routing/search.ts'
+import { formatDuration } from '../engine/scoring.ts'
 
 export interface TroubleSpot {
   id: string
@@ -66,6 +71,12 @@ export interface RunSummary {
   accentColor: string
   /** Whether this counts as a record attempt at all — an abandoned run does not. */
   scoreable: boolean
+  /**
+   * Wordle-style text for the clipboard, where the mode has something worth sharing.
+   * Only the daily journey does: it is the only mode where everyone played the same
+   * thing, which is what makes a score comparable without a leaderboard.
+   */
+  share?: string
 }
 
 const HEADLINE: Record<string, string> = {
@@ -154,4 +165,88 @@ export function summariseRoam(
     accentColor,
     scoreable: complete,
   }
+}
+
+// --- the daily journey ------------------------------------------------------
+
+/**
+ * The daily puzzle's result.
+ *
+ * Scored against par rather than against the clock. Everyone gets the same journey, so
+ * "how many stations did it take you" is the comparable number and speed is incidental.
+ */
+export function summariseJourney(state: JourneyState, accentColor: string): RunSummary {
+  const durationMs = journeyElapsed(state)
+  const won = state.status === 'won'
+  const over = overPar(state)
+
+  return {
+    title: 'Daily journey',
+    headline: won
+      ? over === 0
+        ? 'Perfect route'
+        : `Home in ${state.spent}`
+      : 'Route not found',
+    matchMode: state.matchMode,
+    wpm: wpm(state.correctKeys, durationMs),
+    kpm: kpm(state.correctKeys, durationMs),
+    accuracy: accuracy(state.correctKeys, state.errors),
+    durationMs,
+    stations: state.named.length,
+    errors: state.errors,
+    bestCombo: 0,
+    trouble: [],
+    // The solution's lines, in the order they are ridden.
+    linesUsed: tally(journeyLines(state)),
+    linePath: journeyLines(state),
+    accentColor,
+    // No leaderboard: a board per calendar day would be an unbounded key space, and the
+    // share text already does the job of comparing with friends.
+    scoreable: false,
+    share: shareText(state),
+  }
+}
+
+/** Lines of the route that was actually found, or of the optimal one when the run was lost. */
+function journeyLines(state: JourneyState): LineId[] {
+  const route = state.solution ?? state.puzzle.route
+  const result = findJourney(sharedGraph(), route[0], route[route.length - 1], {
+    via: new Set(route.slice(1, -1)),
+  })
+  if (!result) return []
+  const lines: LineId[] = []
+  for (const leg of result.journey.legs) {
+    for (let i = 0; i < leg.stops; i++) lines.push(leg.lineId)
+  }
+  return lines
+}
+
+/**
+ * Wordle-style share text.
+ *
+ * One square per guess in the order they were made: filled for a station that turned out
+ * to be on the finished route, hollow for a detour. That shows the shape of someone's
+ * thinking without giving away a single station name, so it is safe to paste into a group
+ * chat where other people have not played yet.
+ */
+export function shareText(state: JourneyState): string {
+  const onRoute = new Set(state.solution ?? [])
+  const squares = state.guesses
+    .filter((guess) => guess.counted)
+    .map((guess) => (onRoute.has(guess.stationId) ? '🟩' : '⬜'))
+    .join('')
+
+  const won = state.status === 'won'
+  // Golf, not Wordle: "7/6" reads as seven guesses out of six allowed, which is the
+  // opposite of what it means. Par is the target, and going over it is the score.
+  const score = won
+    ? `${state.spent} stations (par ${state.puzzle.toName})`
+    : `Gave up (par ${state.puzzle.toName})`
+
+  return [
+    `Tube Typing ${state.puzzle.date}`,
+    describePuzzle(state.puzzle),
+    `${score} · ${formatDuration(journeyElapsed(state))}`,
+    squares,
+  ].join('\n')
 }

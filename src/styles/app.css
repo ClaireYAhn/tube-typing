@@ -1667,3 +1667,127 @@ dd {
   background: var(--accent);
   color: #fff;
 }
+
+/* --- menu tabs and the daily journey -------------------------------------- */
+
+.menu__tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 1.5rem 0 1rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+
+.menu__tab {
+  padding: 0.5rem 1.4rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.menu__tab.is-active {
+  background: var(--bg-raised);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.daily {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.daily__date {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.daily__route {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  align-items: baseline;
+  justify-content: center;
+  margin: 0.6rem 0 0.5rem;
+  font-size: clamp(1.4rem, 3.6vw, 2.2rem);
+  line-height: 1.15;
+}
+
+.daily__arrow {
+  color: var(--accent);
+}
+
+.daily__meta {
+  margin: 0 0 1.1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.daily__note {
+  margin: 0.9rem 0 0;
+  color: var(--text-faint);
+  font-size: 0.82rem;
+}
+
+/* The chain of named stations, building between the two ends. */
+.chain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  padding: 0.6rem 1rem 0.9rem;
+}
+
+.chain__end,
+.chain__link {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.chain__end {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.chain__link {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+/* --- share ---------------------------------------------------------------- */
+
+.share {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+
+.share__text {
+  flex: 1 1 12rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}

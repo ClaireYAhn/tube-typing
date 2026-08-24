@@ -8,6 +8,8 @@ import { formatAccuracy, formatDuration, formatWpm } from '../engine/scoring.ts'
 import { accentVars, lineVars } from '../game/contrast.ts'
 import { MODES, type ModeId, type ModeSelection } from '../game/modes.ts'
 import { boardKey } from '../storage/leaderboard.ts'
+import { guessBudget, todaysPuzzle } from '../game/daily.ts'
+import { getStation } from '../data/network.ts'
 import type { Progress } from '../storage/progress.ts'
 import { useBoards } from '../hooks/useBoards.ts'
 import type { Scope } from '../hooks/useScoreSubmission.ts'
@@ -18,6 +20,7 @@ interface Props {
   matchMode: MatchMode
   onMatchModeChange: (mode: MatchMode) => void
   onStart: (selection: ModeSelection) => void
+  onStartJourney: () => void
   onShowProgress: () => void
 }
 
@@ -26,6 +29,7 @@ export function MenuScreen({
   matchMode,
   onMatchModeChange,
   onStart,
+  onStartJourney,
   onShowProgress,
 }: Props) {
   const lines = useLines()
@@ -42,6 +46,11 @@ export function MenuScreen({
   // boards and showing a lenient table under a strict heading would be a lie.
   const boards = useBoards(boardKey('random-sprint', matchMode))
   const [scope, setScope] = useState<Scope>('global')
+
+  // Today is the landing tab. The daily journey is the thing there is a reason to come
+  // back for, and burying it under a grid of practice modes would waste that.
+  const [tab, setTab] = useState<'today' | 'practice'>('today')
+  const puzzle = todaysPuzzle()
   const shown = scope === 'global' ? boards.global : boards.local
 
   function recordFor(key: string) {
@@ -102,6 +111,77 @@ export function MenuScreen({
         </button>
       </div>
 
+      <div className="menu__tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'today'}
+          className={`menu__tab${tab === 'today' ? ' is-active' : ''}`}
+          onClick={() => setTab('today')}
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'practice'}
+          className={`menu__tab${tab === 'practice' ? ' is-active' : ''}`}
+          onClick={() => setTab('practice')}
+        >
+          Practice
+        </button>
+      </div>
+
+      {tab === 'today' ? (
+        <>
+          <section className="daily">
+            <p className="daily__date">Daily journey · {puzzle.date}</p>
+            <h2 className="daily__route">
+              <span className="daily__station">{getStation(puzzle.from).name}</span>
+              <span className="daily__arrow" aria-label="to">→</span>
+              <span className="daily__station">{getStation(puzzle.to).name}</span>
+            </h2>
+            <p className="daily__meta">
+              {puzzle.toName} stations to name · {puzzle.transfers}{' '}
+              {puzzle.transfers === 1 ? 'change' : 'changes'} · {guessBudget(puzzle)} guesses
+            </p>
+            <button type="button" className="button button--primary" onClick={onStartJourney}>
+              Plan the journey
+            </button>
+            <p className="daily__note">
+              Everyone gets the same journey today. Name the stations in between.
+            </p>
+          </section>
+
+      {/* The board sits on the menu so the first thing you see is what there is to beat.
+          Random Sprint only, for now: sixty seconds fixed makes every run on it directly
+          comparable, which a Line Run of the Victoria against one of the Northern is not.
+          Adding another mode is a matter of listing its recordKey here and in
+          ALLOWED_BOARDS. */}
+      <section className="menu__scores">
+        <h2 className="menu__scores-heading">
+          Random Sprint high scores
+          <span className="menu__scores-mode">{matchMode === 'strict' ? 'Strict' : 'Lenient'}</span>
+        </h2>
+        <ScopeTabs
+          scope={scope}
+          onScope={setScope}
+          globalCount={boards.global.unavailable ? null : boards.global.entries.length}
+        />
+        <ScoreTableHead />
+        <BoardBody
+          board={shown}
+          emptyMessage={
+            scope === 'global'
+              ? 'Nobody has posted a score yet. Run a sprint and be the first.'
+              : 'Nothing on this browser yet. Run a sprint and put your name up.'
+          }
+        />
+      </section>
+
+        </>
+      ) : (
+        <>
       <ul className="mode-grid">
         {MODES.map((mode) => {
           const record = recordFor(mode.id === 'line-run' ? `line-run:${selectedRoute.id}` : mode.id)
@@ -182,31 +262,8 @@ export function MenuScreen({
         </section>
       ) : null}
 
-      {/* The board sits on the menu so the first thing you see is what there is to beat.
-          Random Sprint only, for now: sixty seconds fixed makes every run on it directly
-          comparable, which a Line Run of the Victoria against one of the Northern is not.
-          Adding another mode is a matter of listing its recordKey here and in
-          ALLOWED_BOARDS. */}
-      <section className="menu__scores">
-        <h2 className="menu__scores-heading">
-          Random Sprint high scores
-          <span className="menu__scores-mode">{matchMode === 'strict' ? 'Strict' : 'Lenient'}</span>
-        </h2>
-        <ScopeTabs
-          scope={scope}
-          onScope={setScope}
-          globalCount={boards.global.unavailable ? null : boards.global.entries.length}
-        />
-        <ScoreTableHead />
-        <BoardBody
-          board={shown}
-          emptyMessage={
-            scope === 'global'
-              ? 'Nobody has posted a score yet. Run a sprint and be the first.'
-              : 'Nothing on this browser yet. Run a sprint and put your name up.'
-          }
-        />
-      </section>
+        </>
+      )}
 
       <footer className="menu__footer">
         <p>
