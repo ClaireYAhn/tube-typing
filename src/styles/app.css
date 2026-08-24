@@ -1450,3 +1450,174 @@ dd {
 .roam-option.is-ready b {
   color: var(--correct);
 }
+
+/* --- high score table ----------------------------------------------------- */
+
+.menu__scores {
+  width: min(46rem, 100%);
+  margin: 2rem auto 0;
+  padding: 1.1rem 1.25rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+}
+
+.menu__scores-heading {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.7rem;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.menu__scores-mode {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+/* The header row and every score row share one column template, so they line up
+   without either having to know the other's widths. The list itself is just a stack. */
+.score-table__head,
+.score-table__row {
+  display: grid;
+  grid-template-columns: 2rem 1fr 4.5rem 5rem;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.score-table__head {
+  padding: 0 0.5rem 0.35rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.score-table__head span:nth-child(3),
+.score-table__head span:nth-child(4),
+.score-table__kpm,
+.score-table__stations {
+  text-align: right;
+}
+
+.score-table__row {
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.92rem;
+}
+
+.score-table__row:nth-child(even) {
+  background: var(--bg-sunken);
+}
+
+/* The run that has just finished, so you can find yourself without counting rows. */
+.score-table__row.is-you {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.score-table__rank {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.score-table__row.is-you .score-table__rank {
+  color: inherit;
+}
+
+.score-table__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score-table__kpm {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-table__stations {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.score-table__row.is-you .score-table__stations {
+  color: inherit;
+}
+
+.score-table__empty {
+  padding: 0.9rem 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* --- putting your name on the board --------------------------------------- */
+
+.score-entry {
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+
+.score-entry__rank {
+  margin-bottom: 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.score-entry__rank strong {
+  color: var(--text);
+  font-size: 1.15rem;
+}
+
+.score-entry__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.score-entry__input {
+  flex: 1 1 9rem;
+  min-width: 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.score-entry__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.score-board {
+  margin-bottom: 1.25rem;
+}
+
+.score-board h2 {
+  margin-bottom: 0.5rem;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.score-board__error {
+  margin-bottom: 1.25rem;
+  color: var(--error);
+  font-size: 0.9rem;
+}

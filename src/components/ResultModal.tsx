@@ -10,18 +10,27 @@ import { formatAccuracy, formatDuration, formatWpm } from '../engine/scoring.ts'
 import { accentVars } from '../game/contrast.ts'
 import type { RunSummary } from '../game/summary.ts'
 import { useLineMap } from '../hooks/useColorScheme.ts'
+import { useScoreSubmission } from '../hooks/useScoreSubmission.ts'
 import type { BestRecord } from '../storage/progress.ts'
+import { ScoreEntryForm, ScoreTable } from './ScoreEntryForm.tsx'
 
 interface Props {
   summary: RunSummary
   isBest: boolean
   previous: BestRecord | null
+  /**
+   * The high-score board this run belongs to, or null for runs that are not ranked.
+   * The Tube Challenge is not: it is a long-haul thing measured in stations found rather
+   * than a sixty-second score, so a speed table would say nothing about it.
+   */
+  boardKey: string | null
   onRetry: () => void
   onMenu: () => void
 }
 
-export function ResultModal({ summary, isBest, previous, onRetry, onMenu }: Props) {
+export function ResultModal({ summary, isBest, previous, boardKey, onRetry, onMenu }: Props) {
   const dialog = useRef<HTMLDivElement>(null)
+  const score = useScoreSubmission(boardKey, summary)
 
   // Move focus in so the dialog is immediately keyboard-operable, and let Escape close.
   useEffect(() => {
@@ -69,6 +78,33 @@ export function ResultModal({ summary, isBest, previous, onRetry, onMenu }: Prop
           <Figure label="Best combo" value={String(summary.bestCombo)} />
           <Figure label="Mode" value={summary.matchMode === 'strict' ? 'Strict' : 'Lenient'} />
         </dl>
+
+        {score.status.state === 'placing' || score.status.state === 'submitting' ? (
+          <ScoreEntryForm
+            rank={score.status.rank}
+            submitting={score.status.state === 'submitting'}
+            onSubmit={score.submit}
+            onSkip={score.skip}
+          />
+        ) : null}
+
+        {score.status.state === 'listed' || score.status.state === 'missed' ? (
+          <section className="score-board">
+            <h2>
+              {score.status.state === 'listed'
+                ? `High scores — you are #${score.status.rank}`
+                : 'High scores'}
+            </h2>
+            <ScoreTable
+              entries={score.status.board}
+              highlight={score.status.state === 'listed' ? score.status.rank : undefined}
+            />
+          </section>
+        ) : null}
+
+        {score.status.state === 'failed' ? (
+          <p className="score-board__error">{score.status.message}</p>
+        ) : null}
 
         {summary.linesUsed.length > 0 ? (
           <section className="lines-used">
