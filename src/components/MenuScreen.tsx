@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { MapBackdrop } from './MapBackdrop.tsx'
 import { Roundel, ROUNDEL_BLUE, ROUNDEL_RED } from './Roundel.tsx'
 import { useLines } from '../hooks/useColorScheme.ts'
@@ -7,9 +7,11 @@ import type { MatchMode } from '../engine/matcher.ts'
 import { formatAccuracy, formatDuration, formatWpm } from '../engine/scoring.ts'
 import { accentVars, lineVars } from '../game/contrast.ts'
 import { MODES, type ModeId, type ModeSelection } from '../game/modes.ts'
-import { boardKey, localLeaderboard, type ScoreEntry } from '../storage/leaderboard.ts'
+import { boardKey } from '../storage/leaderboard.ts'
 import type { Progress } from '../storage/progress.ts'
-import { ScoreTable } from './ScoreEntryForm.tsx'
+import { useBoards } from '../hooks/useBoards.ts'
+import type { Scope } from '../hooks/useScoreSubmission.ts'
+import { BoardBody, ScopeTabs, ScoreTableHead } from './ScoreBoard.tsx'
 
 interface Props {
   progress: Progress
@@ -38,17 +40,9 @@ export function MenuScreen({
 
   // Reloaded whenever the punctuation toggle moves, because the two modes keep separate
   // boards and showing a lenient table under a strict heading would be a lie.
-  const [scores, setScores] = useState<ScoreEntry[]>([])
-  useEffect(() => {
-    let cancelled = false
-    localLeaderboard
-      .top(boardKey('random-sprint', matchMode))
-      .then((board) => !cancelled && setScores(board))
-      .catch(() => !cancelled && setScores([]))
-    return () => {
-      cancelled = true
-    }
-  }, [matchMode])
+  const boards = useBoards(boardKey('random-sprint', matchMode))
+  const [scope, setScope] = useState<Scope>('global')
+  const shown = scope === 'global' ? boards.global : boards.local
 
   function recordFor(key: string) {
     return progress.records[matchMode][key] ?? null
@@ -191,21 +185,26 @@ export function MenuScreen({
       {/* The board sits on the menu so the first thing you see is what there is to beat.
           Random Sprint only, for now: sixty seconds fixed makes every run on it directly
           comparable, which a Line Run of the Victoria against one of the Northern is not.
-          Adding another mode is a matter of listing its recordKey here. */}
+          Adding another mode is a matter of listing its recordKey here and in
+          ALLOWED_BOARDS. */}
       <section className="menu__scores">
         <h2 className="menu__scores-heading">
           Random Sprint high scores
           <span className="menu__scores-mode">{matchMode === 'strict' ? 'Strict' : 'Lenient'}</span>
         </h2>
-        <div className="score-table__head" aria-hidden="true">
-          <span />
-          <span>Name</span>
-          <span>KPM</span>
-          <span>Stations</span>
-        </div>
-        <ScoreTable
-          entries={scores}
-          emptyMessage="No scores yet. Run a sprint and put your name up."
+        <ScopeTabs
+          scope={scope}
+          onScope={setScope}
+          globalCount={boards.global.unavailable ? null : boards.global.entries.length}
+        />
+        <ScoreTableHead />
+        <BoardBody
+          board={shown}
+          emptyMessage={
+            scope === 'global'
+              ? 'Nobody has posted a score yet. Run a sprint and be the first.'
+              : 'Nothing on this browser yet. Run a sprint and put your name up.'
+          }
         />
       </section>
 

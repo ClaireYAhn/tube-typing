@@ -1621,3 +1621,49 @@ dd {
   color: var(--error);
   font-size: 0.9rem;
 }
+
+/* --- global vs local board ------------------------------------------------ */
+
+.scope-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+  padding: 0.2rem;
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+
+.scope-tab {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.35rem 0.8rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scope-tab.is-active {
+  background: var(--bg-raised);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.scope-tab__count {
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--text-faint);
+  font-size: 0.75em;
+  font-variant-numeric: tabular-nums;
+}
+
+.scope-tab.is-active .scope-tab__count {
+  background: var(--accent);
+  color: #fff;
+}

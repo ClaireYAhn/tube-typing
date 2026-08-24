@@ -103,6 +103,38 @@ The search itself is not written yet; it plugs in as a Dijkstra over `neighbours
 with every node at the origin and stopping at any node at the destination, and needs no
 changes to what is there.
 
+## High scores
+
+Two tables, always both. **This browser** is localStorage and never fails. **Everyone** is
+a shared board behind `api/scores.ts`, a Vercel Edge Function over a Redis sorted set.
+
+A sorted set is exactly this data structure, so there is no schema: `ZADD` to submit,
+`ZREVRANGE` to read, `ZREMRANGEBYRANK` to keep the key bounded. Redis orders by the numeric
+score alone, which is KPM, and the finer ordering (accuracy, then who got there first) is
+applied after reading using the same comparator the local board uses. Both tables therefore
+break ties identically.
+
+Scores are computed in the browser, so **the shared board cannot be made cheat-proof** and
+is not presented as if it were. `src/storage/scoreRules.ts` rejects the obvious nonsense: a
+speed nobody has typed, an accuracy above 1, and a KPM that does not match the stations
+claimed in the time claimed. The server stamps its own timestamp so nobody wins a tie by
+claiming to have played in 1970, and submissions are rate limited per address.
+
+### Setting up the shared board
+
+Without credentials the endpoint reports itself unavailable, the menu shows local scores
+only, and nothing breaks. To turn it on:
+
+1. In the Vercel dashboard, open the project → **Storage** → create an **Upstash for
+   Redis** database and connect it to the project.
+2. That sets `KV_REST_API_URL` and `KV_REST_API_TOKEN` (older integrations use
+   `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`; either pair works).
+3. Redeploy.
+
+Running `vite dev` locally has no functions behind `/api`, so the shared tab reads as
+unavailable there. That path is worth keeping exercised, since it is what every player sees
+if the store ever goes down. Use `vercel dev` to run the function alongside the site.
+
 ## Menu backdrop
 
 The menu sits on a faint tube map: `public/tube-map-tfl.jpg`, which is TfL's own artwork

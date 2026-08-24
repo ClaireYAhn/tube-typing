@@ -5,14 +5,16 @@
  * route you just typed and where you stopped, which a separate screen threw away.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatAccuracy, formatDuration, formatWpm } from '../engine/scoring.ts'
 import { accentVars } from '../game/contrast.ts'
 import type { RunSummary } from '../game/summary.ts'
 import { useLineMap } from '../hooks/useColorScheme.ts'
 import { useScoreSubmission } from '../hooks/useScoreSubmission.ts'
 import type { BestRecord } from '../storage/progress.ts'
-import { ScoreEntryForm, ScoreTable } from './ScoreEntryForm.tsx'
+import { ScoreEntryForm } from './ScoreEntryForm.tsx'
+import { BoardBody, ScopeTabs, ScoreTableHead } from './ScoreBoard.tsx'
+import type { Scope } from '../hooks/useScoreSubmission.ts'
 
 interface Props {
   summary: RunSummary
@@ -31,6 +33,9 @@ interface Props {
 export function ResultModal({ summary, isBest, previous, boardKey, onRetry, onMenu }: Props) {
   const dialog = useRef<HTMLDivElement>(null)
   const score = useScoreSubmission(boardKey, summary)
+  // Opens on the shared board, which is the more interesting question after a run.
+  const [scope, setScope] = useState<Scope>('global')
+  const shown = scope === 'global' ? score.global : score.local
 
   // Move focus in so the dialog is immediately keyboard-operable, and let Escape close.
   useEffect(() => {
@@ -79,31 +84,33 @@ export function ResultModal({ summary, isBest, previous, boardKey, onRetry, onMe
           <Figure label="Mode" value={summary.matchMode === 'strict' ? 'Strict' : 'Lenient'} />
         </dl>
 
-        {score.status.state === 'placing' || score.status.state === 'submitting' ? (
-          <ScoreEntryForm
-            rank={score.status.rank}
-            submitting={score.status.state === 'submitting'}
-            onSubmit={score.submit}
-            onSkip={score.skip}
-          />
-        ) : null}
-
-        {score.status.state === 'listed' || score.status.state === 'missed' ? (
+        {boardKey !== null && summary.scoreable ? (
           <section className="score-board">
-            <h2>
-              {score.status.state === 'listed'
-                ? `High scores — you are #${score.status.rank}`
-                : 'High scores'}
-            </h2>
-            <ScoreTable
-              entries={score.status.board}
-              highlight={score.status.state === 'listed' ? score.status.rank : undefined}
+            {score.phase === 'placing' || score.phase === 'submitting' ? (
+              <ScoreEntryForm
+                rank={score.bestRank}
+                submitting={score.phase === 'submitting'}
+                onSubmit={score.submit}
+                onSkip={score.skip}
+              />
+            ) : null}
+
+            <h2>High scores</h2>
+            <ScopeTabs
+              scope={scope}
+              onScope={setScope}
+              globalCount={score.global.unavailable ? null : score.global.entries.length}
+            />
+            <ScoreTableHead />
+            <BoardBody
+              board={shown}
+              emptyMessage={
+                scope === 'global'
+                  ? 'Nobody has posted a score yet.'
+                  : 'Nothing on this browser yet.'
+              }
             />
           </section>
-        ) : null}
-
-        {score.status.state === 'failed' ? (
-          <p className="score-board__error">{score.status.message}</p>
         ) : null}
 
         {summary.linesUsed.length > 0 ? (
