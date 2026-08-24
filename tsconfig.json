@@ -1,14 +1,26 @@
 {
+  /* The real configuration lives in the referenced projects; this one builds nothing.
+     The compilerOptions here exist for tools that read only the root tsconfig and would
+     otherwise compile api/ with stock defaults — Vercel's function builder among them,
+     which rejects the project's .ts import extensions without allowImportingTsExtensions. */
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
   "files": [],
   "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.node.json"
-    },
-    {
-      "path": "./tsconfig.api.json"
-    }
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.api.json" }
   ]
 }
