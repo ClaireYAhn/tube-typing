@@ -1,0 +1,8 @@
+# Vercel turns every file under api/ into an endpoint. Nothing but the handlers
+# themselves belongs there, and this is a second line of defence behind keeping the
+# tests under src/.
+api/**/*.test.ts
+
+# Not needed to build or serve the site.
+scripts
+*.md

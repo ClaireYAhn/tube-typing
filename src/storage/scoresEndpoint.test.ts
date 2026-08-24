@@ -1,6 +1,14 @@
+/**
+ * Tests for the shared-board endpoint.
+ *
+ * Lives under src/ rather than beside the handler because Vercel treats every file in
+ * api/ as a function entry point. A test file there gets compiled as an endpoint, and
+ * one importing vitest with no default export fails the whole deployment.
+ */
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import handler from './scores.ts'
-import type { ScoreEntry } from '../src/storage/leaderboard.ts'
+import handler from '../../api/scores.ts'
+import type { ScoreEntry } from './leaderboard.ts'
 
 const BOARD = 'random-sprint:lenient'
 
