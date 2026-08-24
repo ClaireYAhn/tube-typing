@@ -17,9 +17,15 @@
  * before this existed and is a much better outcome than a broken menu.
  */
 
-// Only ever import from inside api/. Vercel's Edge bundler refuses an import that
-// leaves the function's directory, which is why _scoring.ts lives here.
-import { compareScores, isAllowedBoard, validateScore, type ScoreEntry } from './_scoring.ts'
+/*
+ * No `.ts` on the end of this specifier, unlike everywhere else in the project.
+ *
+ * Vercel's Edge bundler will not resolve an explicit `.ts` extension and fails the build
+ * with "referencing unsupported modules". Extensionless resolves fine, and TypeScript is
+ * happy either way under `moduleResolution: bundler`, so the odd one out lives here with
+ * a note rather than in the style guide.
+ */
+import { compareScores, isAllowedBoard, validateScore, type ScoreEntry } from './_scoring'
 
 export const config = { runtime: 'edge' }
 
