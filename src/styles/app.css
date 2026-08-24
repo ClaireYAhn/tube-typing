@@ -1,0 +1,1452 @@
+/* ---------------------------------------------------------------------------
+   Tube Typing
+   Transport-signage feel: a heavy grotesque and generous letter spacing.
+   Line colours are NOT here — they live in src/data/lineColors.ts and are
+   applied inline, so the palette has exactly one source of truth.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --bg: #f6f6f4;
+  --bg-raised: #ffffff;
+  --bg-sunken: #ececea;
+  --border: #d9d9d5;
+  --text: #16181a;
+  --text-muted: #5f6469;
+  --text-faint: #9aa0a6;
+  --correct: #1a7f4b;
+  --error: #c62828;
+  --skipped: #a9a29a;
+  /* Line colours are NOT defined here — they live in src/data/lineColors.ts and are
+     applied inline, so the palette has exactly one source of truth. */
+  --accent: #0098d4;
+
+  /* Map surface. The paper tint and pale river are what make an SVG of coordinates
+     read as a transport diagram rather than a chart. */
+  --map-bg: #f2f1ec;
+  --map-river: #b6d8e8;
+  --map-ahead: #c6cacd;
+  --map-idle: #dcdedf;
+  --map-marker: #ffffff;
+  --map-marker-ring: #23262a;
+
+  --radius: 10px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 8px 24px rgb(0 0 0 / 6%);
+  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101214;
+    --bg-raised: #191c1f;
+    --bg-sunken: #0a0b0d;
+    --border: #2a2f34;
+    --text: #f2f4f6;
+    --text-muted: #9aa3ac;
+    --text-faint: #666e76;
+    --correct: #4ade80;
+    --error: #ff6b6b;
+    --skipped: #5c646c;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
+
+    --map-bg: #16191c;
+    --map-river: #1d3b4a;
+    --map-ahead: #3a4249;
+    --map-idle: #262b30;
+    --map-marker: #e9ecef;
+    --map-marker-ring: #0b0d0f;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+ul,
+ol,
+dl,
+dd {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* --- buttons ------------------------------------------------------------- */
+
+.button {
+  padding: 0.65rem 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+
+.button:hover {
+  border-color: var(--text-faint);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+/* Filled surfaces use --accent-strong, the accent nudged until --accent-ink clears
+   4.5:1 on it. Only Bakerloo's brown actually needs the nudge, but the rule keeps every
+   line safe. Unfilled uses of the accent (bars, borders) keep the published --accent. */
+.button--primary {
+  border-color: transparent;
+  background: var(--accent-strong, var(--accent));
+  color: var(--accent-ink, #fff);
+}
+
+.button--ghost {
+  background: transparent;
+}
+
+.button--danger {
+  border-color: var(--error);
+  background: transparent;
+  color: var(--error);
+}
+
+.button kbd {
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75em;
+}
+
+/* --- menu ---------------------------------------------------------------- */
+
+.menu {
+  position: relative;
+  z-index: 0;
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 3.5rem) 1.25rem 3rem;
+}
+
+/* TfL's map behind the menu, faint enough to be texture rather than content. */
+.map-backdrop {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.map-backdrop img,
+.map-backdrop__drawn {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.16;
+}
+
+/* The drawn fallback is already in line colours, so it needs less knocking back than the
+   printed artwork to sit at the same visual weight. */
+.map-backdrop__drawn {
+  opacity: 0.2;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* The artwork is drawn for white paper; inverting keeps it legible on a dark ground. */
+  .map-backdrop img {
+    opacity: 0.13;
+    filter: invert(1) hue-rotate(180deg);
+  }
+
+  /* The drawn map has no white paper to invert, only coloured strokes, so it just gets
+     dimmed. Inverting it would turn every line into its opposite colour. */
+  .map-backdrop__drawn {
+    opacity: 0.16;
+  }
+}
+
+.menu__roundel {
+  display: block;
+  margin-bottom: 0.9rem;
+}
+
+.menu__title {
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  line-height: 1.05;
+}
+
+.menu__title span {
+  color: var(--accent);
+}
+
+.menu__tagline {
+  max-width: 34rem;
+  margin: 0.85rem 0 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.menu__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin: 2rem 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.menu__hint {
+  flex: 1 1 16rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.toggle {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.toggle__legend {
+  padding: 0 0 0.35rem;
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.toggle__options {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+
+.toggle__option {
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggle__option.is-active {
+  background: var(--bg-raised);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.toggle__option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mode-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.mode-card {
+  width: 100%;
+  height: 100%;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.12s;
+}
+
+.mode-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.mode-card.is-expanded {
+  border-color: var(--accent);
+}
+
+.mode-card__title {
+  font-size: 1.2rem;
+}
+
+.mode-card__blurb {
+  margin: 0.5rem 0 0.9rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.mode-card__meta {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- line picker --------------------------------------------------------- */
+
+.line-picker {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.line-picker__heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: baseline;
+  margin-bottom: 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.line-picker__note {
+  font-size: 0.75rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+.line-picker__lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.line-chip {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.line-chip.is-active {
+  background: var(--line-strong, var(--line));
+  border-color: var(--line-strong, var(--line));
+  color: var(--line-ink, #fff);
+}
+
+.line-picker__routes {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.route-option {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.route-option.is-active {
+  border-color: var(--accent);
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+
+.route-option__count {
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu__footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.menu__footer p {
+  margin: 0 0 0.4rem;
+}
+
+/* --- game ---------------------------------------------------------------- */
+
+.game {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.game__header {
+  position: absolute;
+  z-index: 3;
+  top: 1rem;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.game__quit {
+  background: var(--bg-raised);
+}
+
+.run-card {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+
+.run-card__terminus {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.run-card__tag {
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.run-card__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.run-card__middle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: center;
+  padding: 0 1.25rem;
+  border-inline: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.run-card__middle strong {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+/* --- map ----------------------------------------------------------------- */
+
+.game__map {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--map-bg);
+  overflow: hidden;
+}
+
+.tube-map {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Panning is a transform on the whole scene, so it can be transitioned; animating a
+   viewBox cannot. */
+.tube-map__camera {
+  transition: transform 0.42s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.tube-map__river {
+  fill: none;
+  stroke: var(--map-river);
+  stroke-width: 34;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tube-map__inactive {
+  /* Opacity belongs on the group, not each path: per-path alpha compounds wherever
+     routes overlap, and branching lines overlap constantly. */
+  opacity: 0.55;
+}
+
+/* Flat grey, not their own colours. Thirteen coloured lines crossing each other turned
+   the screen into noise and buried the one route that matters. */
+.tube-map__inactive path {
+  fill: none;
+  stroke: var(--map-idle);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tube-map__casing {
+  fill: none;
+  stroke: var(--map-bg);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tube-map__ahead {
+  fill: none;
+  stroke: var(--map-ahead);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tube-map__travelled {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tube-map__interchange {
+  fill: var(--map-marker);
+  stroke: var(--map-marker-ring);
+  stroke-width: 3.5;
+  transition: fill 0.25s;
+}
+
+.tube-map__stop {
+  fill: var(--map-marker);
+  stroke: var(--map-marker-ring);
+  stroke-width: 2.5;
+  transition: fill 0.25s;
+}
+
+/* Font size is set on the element from the same constant the pill is measured with —
+   see NamePill. Only weight and the plain variant's colours live here. */
+.name-pill text {
+  font-weight: 700;
+}
+
+.name-pill.is-plain rect {
+  fill: var(--map-marker);
+  stroke: var(--map-ahead);
+  stroke-width: 1.2;
+}
+
+.name-pill.is-plain text {
+  fill: var(--text-muted);
+}
+
+/* Random Sprint's teleport between two unrelated stations. Dashed, so it never reads as
+   a stretch of track that you could actually ride. */
+.tube-map__jump {
+  fill: none;
+  opacity: 0.75;
+  stroke-dasharray: 3 7;
+  stroke-linecap: round;
+}
+
+/* --- the train ----------------------------------------------------------- */
+
+.train {
+  transition: transform 0.42s cubic-bezier(0.33, 1, 0.68, 1);
+  filter: drop-shadow(0 3px 5px rgb(0 0 0 / 28%));
+}
+
+/* Underground livery: white shell, red doors and cab, deep blue skirt. */
+.train__body {
+  fill: #fbfbfa;
+  stroke: #10233f;
+  stroke-width: 2;
+}
+
+.train__skirt {
+  fill: none;
+  stroke: #10233f;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.train__waist {
+  stroke: #10233f;
+  stroke-width: 1.2;
+}
+
+.train__cab {
+  fill: #d3202a;
+  stroke: #10233f;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.train__windscreen {
+  fill: #10233f;
+}
+
+/* --- stat strip ---------------------------------------------------------- */
+
+.strip {
+  position: absolute;
+  z-index: 2;
+  bottom: 0.85rem;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  gap: clamp(0.9rem, 2.2vw, 2rem);
+  margin: 0;
+  padding: 0.5rem 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+}
+
+.strip__item {
+  text-align: center;
+}
+
+.strip__item dt {
+  color: var(--text-faint);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.strip__item dd {
+  margin: 0.1rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.strip__item.is-urgent dd,
+.strip__item.is-broken dd,
+.strip__item.is-broken dt {
+  color: var(--error);
+}
+
+.strip__item.is-accent dd {
+  color: var(--correct);
+}
+
+.game__overlay {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  margin: 0;
+  padding: 0.8rem 1.6rem;
+  border-radius: 999px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+  font-size: 1.15rem;
+  font-weight: 700;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* --- station banner ------------------------------------------------------ */
+
+.banner {
+  position: relative;
+  flex: none;
+  padding-bottom: 1.1rem;
+  background: var(--bg);
+}
+
+.banner__line {
+  width: fit-content;
+  margin: 0 auto;
+  padding: 0.2rem 0.9rem;
+  border-radius: 0 0 6px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.banner__band {
+  position: relative;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  height: 8.5rem;
+  margin-top: 0.55rem;
+  overflow: hidden;
+}
+
+/* Directly either side of the capsule: previous stop, current stop, next stop. */
+.banner__neighbour {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 0.6rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  opacity: 0.72;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.banner__arrow {
+  font-size: 1.15rem;
+  opacity: 0.75;
+}
+
+.banner__capsule {
+  flex: 0 1 auto;
+  display: flex;
+  gap: 1.1rem;
+  align-items: center;
+  max-width: min(56rem, 76vw);
+  padding: 0.9rem 2rem 0.9rem 1rem;
+  border-radius: 999px;
+  background: var(--bg-raised);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 18%);
+}
+
+.banner__badge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  align-items: center;
+  justify-content: center;
+  width: 4.2rem;
+  height: 4.2rem;
+  flex: none;
+  border-radius: 50%;
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.banner__badge-total {
+  font-size: 0.68rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.banner__name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.banner__meta {
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.station-name {
+  font-size: clamp(1.6rem, 3.6vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.station-name--shake {
+  animation: shake 0.18s ease-in-out;
+}
+
+.station-name__char--pending {
+  color: var(--text-faint);
+}
+
+.station-name__char--correct {
+  color: var(--text);
+}
+
+.station-name__char--skipped {
+  color: var(--skipped);
+}
+
+/* The cursor marks the slot, not the letter: the character stays the same grey as the
+   rest of the untyped name and only turns dark at the moment it is typed, so the eye
+   follows the highlight rather than a colour change. */
+.station-name__char--cursor {
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--text-faint);
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .station-name,
+  .mode-card,
+  .tube-map__camera,
+  .train,
+  .game__overlay {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* --- result -------------------------------------------------------------- */
+
+.result {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 4rem) 1.25rem;
+}
+
+.result__eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.result__headline {
+  margin-top: 0.4rem;
+  font-size: clamp(2rem, 6vw, 3rem);
+}
+
+.result__badge {
+  display: inline-block;
+  margin-top: 0.85rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: var(--correct);
+  color: var(--bg);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.result__stats {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  margin: 2.5rem 0;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.figure__label {
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.figure__value {
+  margin: 0.2rem 0 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.result__trouble h2,
+.line-progress h2,
+.records h2 {
+  margin-bottom: 0.85rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.result__trouble li {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.result__trouble-count {
+  color: var(--error);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.result__clean {
+  color: var(--correct);
+  font-weight: 600;
+}
+
+.result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 2.5rem;
+}
+
+/* --- progress screen ----------------------------------------------------- */
+
+.progress-screen {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 3rem) 1.25rem 4rem;
+}
+
+.progress-screen__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.progress-screen__header h1 {
+  font-size: 1.75rem;
+}
+
+.progress-screen__mode {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}
+
+.challenge-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.challenge-summary__figure {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.challenge-summary__count {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.challenge-summary__total {
+  color: var(--text-faint);
+  font-size: 1.1rem;
+}
+
+.challenge-summary__body {
+  flex: 1 1 18rem;
+}
+
+.challenge-summary__body h2 {
+  margin-bottom: 0.6rem;
+  font-size: 1.1rem;
+}
+
+.challenge-summary__meta {
+  margin: 0.6rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.meter {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.meter--slim {
+  height: 6px;
+}
+
+.meter__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.line-progress,
+.records {
+  margin-top: 2.5rem;
+}
+
+.line-progress__row {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: minmax(8rem, 12rem) 1fr auto;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.line-progress__name {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.line-progress__swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 3px;
+  flex: none;
+}
+
+/* Pale lines need an edge or they read as an empty square. */
+.line-progress__swatch.is-light {
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+}
+
+.line-progress__count {
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.records__row {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: 1fr auto auto auto;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.records__key {
+  color: var(--text-muted);
+}
+
+.records__empty {
+  color: var(--text-faint);
+}
+
+@media (max-width: 34rem) {
+  .line-progress__row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .line-progress__row .meter {
+    grid-column: 1 / -1;
+  }
+
+  .records__row {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+/* --- station picker ------------------------------------------------------- */
+
+.picker {
+  position: relative;
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: clamp(2rem, 5vw, 4rem) 1.25rem 3rem;
+}
+
+.picker__header h1 {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+}
+
+.picker__header p {
+  max-width: 34rem;
+  margin: 0.8rem 0 1.75rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.picker__input {
+  width: 100%;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+}
+
+.picker__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.picker__hint {
+  margin: 0.7rem 0;
+  color: var(--text-faint);
+  font-size: 0.8rem;
+}
+
+.picker__results {
+  max-height: 26rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  overflow-y: auto;
+}
+
+.picker__result {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker__result:hover {
+  background: var(--bg-sunken);
+}
+
+.picker__name {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  font-weight: 600;
+}
+
+.picker__done {
+  color: var(--correct);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.picker__lines {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex: none;
+}
+
+.picker__line {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+}
+
+.picker__zone {
+  margin-left: 0.5rem;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- free roam ------------------------------------------------------------ */
+
+.banner--roam .banner__band {
+  height: 9.5rem;
+}
+
+.banner__capsule--roam {
+  align-items: flex-start;
+  max-width: min(64rem, 88vw);
+  padding: 0.85rem 1.4rem 0.85rem 1rem;
+}
+
+.roam-options {
+  min-width: 0;
+}
+
+.roam-options__label {
+  margin: 0 0 0.5rem;
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.roam-options__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.roam-option {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  transition: opacity 0.15s, border-color 0.15s;
+}
+
+/* Typed characters go dark and the option lifts, so the one you are committing to is
+   obvious without having to read the whole row. */
+.roam-option b {
+  color: var(--text);
+}
+
+.roam-option.is-active {
+  border-color: var(--accent);
+  background: var(--bg-sunken);
+}
+
+.roam-option.is-dead {
+  opacity: 0.3;
+}
+
+.roam-option.is-visited {
+  opacity: 0.55;
+}
+
+.roam-option__swatches {
+  display: flex;
+  gap: 0.15rem;
+  flex: none;
+}
+
+.roam-option__swatch {
+  width: 0.4rem;
+  height: 0.9rem;
+  border-radius: 2px;
+}
+
+.candidate.is-dead {
+  opacity: 0.35;
+}
+
+.candidate.is-visited {
+  opacity: 0.6;
+}
+
+
+/* --- result dialog -------------------------------------------------------- */
+
+.modal {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.modal__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 45%);
+  backdrop-filter: blur(2px);
+  animation: fade 0.18s ease-out;
+}
+
+.modal__panel {
+  position: relative;
+  width: min(33rem, 100%);
+  max-height: 88dvh;
+  padding: clamp(1.25rem, 2.4vw, 1.8rem);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-raised);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
+  overflow-y: auto;
+  animation: rise 0.22s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+}
+
+.modal__headline {
+  margin-top: 0.3rem;
+  font-size: clamp(1.35rem, 3.2vw, 1.8rem);
+}
+
+.modal__stats {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 1.15rem 0;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+
+@media (max-width: 34rem) {
+  .modal__stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* --- lines travelled ------------------------------------------------------ */
+
+.lines-used {
+  margin-bottom: 1.5rem;
+}
+
+.lines-used h2 {
+  margin-bottom: 0.6rem;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lines-used__bar {
+  display: flex;
+  gap: 1px;
+  height: 13px;
+  margin-bottom: 0.7rem;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+/* Every stop gets an equal stripe, so the bar reads left to right as the journey. */
+.lines-used__segment {
+  flex: 1 1 0;
+  min-width: 2px;
+}
+
+.lines-used__key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.lines-used__key li {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.lines-used__key b {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.lines-used__swatch {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 3px;
+}
+
+/* --- free roam: confirm prompt -------------------------------------------- */
+
+.roam-confirm {
+  color: var(--correct);
+}
+
+.roam-confirm kbd {
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.95em;
+}
+
+.roam-option.is-ready {
+  border-color: var(--correct);
+  background: var(--bg-sunken);
+}
+
+.roam-option.is-ready b {
+  color: var(--correct);
+}
