@@ -98,10 +98,16 @@ Results are legs — `{ lineId, from, to, stops }` — not a flat station list, 
 can render as "Victoria, 3 stops → change at King's Cross → Piccadilly, 5 stops" with each
 segment in its own line colour.
 
-The graph (`graph.ts`) and the path → journey conversion (`legs.ts`) are built and tested.
-The search itself is not written yet; it plugs in as a Dijkstra over `neighbours`, seeded
-with every node at the origin and stopping at any node at the destination, and needs no
-changes to what is there.
+`search.ts` is the Dijkstra, seeded with every node at the origin and stopping at any node
+at the destination, which is what lets it choose the line to board rather than being told.
+Because transfers are edges with a real cost, "cheapest path" already means "sensible
+number of changes" with no special case: at 270 seconds a change has to save more than two
+stops to be worth making. It gets Heathrow Terminal 5 to Epping as Elizabeth line, change,
+Central, and Morden to High Barnet as thirty stops of Northern with no change at all.
+
+`findJourney` also takes a `via` set that restricts which stations may be passed through,
+which is how a puzzle asks whether a route still exists using only the stations named so
+far.
 
 ## High scores
 

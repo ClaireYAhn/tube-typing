@@ -1,11 +1,10 @@
 /**
  * Builds the station × line graph described in `types.ts`.
  *
- * This is the substrate a journey planner runs on. The search itself (Dijkstra over
- * `neighbours`, seeded with every node at the origin station and stopping at any node at
- * the destination) is not implemented yet — but nothing about it requires changing what
- * is here: it consumes `Graph` and produces a `NodeId[]`, which `legs.ts` already knows
- * how to turn into a `Journey`.
+ * This is the substrate the journey planner runs on. The search lives in `search.ts`:
+ * Dijkstra over `neighbours`, seeded with every node at the origin station and stopping at
+ * any node at the destination. It consumes a `Graph` and produces a `NodeId[]`, which
+ * `legs.ts` turns into a `Journey`, and adding it needed no change to anything here.
  */
 
 import { network } from '../data/network.ts'
