@@ -8,7 +8,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import handler from '../../api/scores.ts'
-import type { ScoreEntry } from './leaderboard.ts'
+import type { ScoreEntry } from '../../api/_scoring.ts'
 
 const BOARD = 'random-sprint:lenient'
 

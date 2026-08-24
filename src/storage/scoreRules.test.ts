@@ -4,7 +4,7 @@ import {
   isAllowedBoard,
   validateScore,
   type SubmittedScore,
-} from './scoreRules.ts'
+} from '../../api/_scoring.ts'
 
 /** A plausible sixty-second sprint: 55 stations, about 12 keys each. */
 function plausible(over: Partial<SubmittedScore> = {}): SubmittedScore {

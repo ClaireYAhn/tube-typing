@@ -17,6 +17,12 @@
  */
 
 import type { MatchMode } from '../engine/matcher.ts'
+import { compareScores, type ScoreEntry } from '../../api/_scoring.ts'
+
+// Re-exported so callers keep importing scores from the scores module. The definitions
+// live under api/ because the Edge function cannot import out of its own directory.
+export { compareScores }
+export type { ScoreEntry }
 
 const KEY = 'tube-typing:scores'
 const VERSION = 1
@@ -26,16 +32,6 @@ export const BOARD_SIZE = 10
 
 /** Longest name accepted. Arcade-short, and it has to fit the table on the menu. */
 export const MAX_NAME = 12
-
-export interface ScoreEntry {
-  name: string
-  kpm: number
-  wpm: number
-  accuracy: number
-  stations: number
-  durationMs: number
-  achievedAt: string
-}
 
 export interface SubmitResult {
   /** 1-based position, or 0 when the score did not make the table. */
@@ -54,20 +50,6 @@ export interface LeaderboardStore {
 /** The board a run belongs to. Both parts matter; see the note on match modes above. */
 export function boardKey(recordKey: string, matchMode: MatchMode): string {
   return `${recordKey}:${matchMode}`
-}
-
-/**
- * Ranks two scores. KPM first, since that is the score the game is actually about.
- *
- * Accuracy breaks ties, which matters more than it looks: in a fixed-length sprint two
- * players often finish on the same round number of keys, and rewarding the cleaner run is
- * the right call. An earlier timestamp breaks the remainder, so holding a place means
- * someone has to genuinely beat you rather than merely equal you.
- */
-export function compareScores(a: ScoreEntry, b: ScoreEntry): number {
-  if (a.kpm !== b.kpm) return b.kpm - a.kpm
-  if (a.accuracy !== b.accuracy) return b.accuracy - a.accuracy
-  return a.achievedAt.localeCompare(b.achievedAt)
 }
 
 /**

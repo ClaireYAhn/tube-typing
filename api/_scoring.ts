@@ -1,14 +1,41 @@
 /**
- * What a submitted score is allowed to look like.
+ * Score types and rules, shared by the browser and the `api/scores` function.
  *
- * **This does not stop cheating and cannot.** The score is computed in the browser, so
- * anyone with a console open can post whatever number they like, and no amount of
- * server-side checking changes that. What these rules do is keep the obvious nonsense off
- * the board, which for a game friends play is the whole of the problem worth solving.
+ * **This file lives under `api/` for one reason: Vercel's Edge bundler will not follow an
+ * import out of the function's own directory.** Putting it in `src/` and importing it
+ * across failed the deployment with "referencing unsupported modules", and the front end
+ * has no such restriction, so the shared code lives on the side that does. The leading
+ * underscore keeps Vercel from treating it as an endpoint.
  *
- * Imported by both the client and the API function on purpose. Two copies of a rule is
- * two rules, and the one that drifts is always the one nobody is looking at.
+ * Both sides importing the same file is the point. Two copies of a rule is two rules, and
+ * the one that drifts is always the one nobody is looking at.
  */
+
+export interface ScoreEntry {
+  name: string
+  kpm: number
+  wpm: number
+  accuracy: number
+  stations: number
+  durationMs: number
+  achievedAt: string
+}
+
+/**
+ * Ranks two scores. KPM first, since that is the score the game is actually about.
+ *
+ * Accuracy breaks ties, which matters more than it looks: in a fixed-length sprint two
+ * players often finish on the same round number of keys, and rewarding the cleaner run is
+ * the right call. An earlier timestamp breaks the remainder, so holding a place means
+ * someone has to genuinely beat you rather than merely equal you.
+ *
+ * Used by both boards, so the local table and the shared one order identically.
+ */
+export function compareScores(a: ScoreEntry, b: ScoreEntry): number {
+  if (a.kpm !== b.kpm) return b.kpm - a.kpm
+  if (a.accuracy !== b.accuracy) return b.accuracy - a.accuracy
+  return a.achievedAt.localeCompare(b.achievedAt)
+}
 
 /** Fastest sustained typing on record is around 216 wpm. This is well clear of it. */
 export const MAX_KPM = 1400

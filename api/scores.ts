@@ -17,8 +17,9 @@
  * before this existed and is a much better outcome than a broken menu.
  */
 
-import { compareScores, type ScoreEntry } from '../src/storage/leaderboard.ts'
-import { isAllowedBoard, validateScore } from '../src/storage/scoreRules.ts'
+// Only ever import from inside api/. Vercel's Edge bundler refuses an import that
+// leaves the function's directory, which is why _scoring.ts lives here.
+import { compareScores, isAllowedBoard, validateScore, type ScoreEntry } from './_scoring.ts'
 
 export const config = { runtime: 'edge' }
 
