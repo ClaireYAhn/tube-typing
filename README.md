@@ -86,9 +86,9 @@ Two cases need handling, both flagged in that file:
 and, where neither clears 4.5:1 — which of the TfL palette is only Bakerloo's brown —
 nudges the fill until it does, keeping the hue.
 
-## Routing (structure only)
+## Routing
 
-`src/routing/` models the network for future interchange-aware journey planning. The key
+`src/routing/` models the network for interchange-aware journey planning. The key
 decision is that a graph node is **a station on a line**, not a station: King's Cross St
 Pancras is six nodes. That keeps the line you arrived on in the path, so a change of line
 is an explicit edge with a real cost rather than a free teleport, and the boarding options
@@ -121,7 +121,7 @@ applied after reading using the same comparator the local board uses. Both table
 break ties identically.
 
 Scores are computed in the browser, so **the shared board cannot be made cheat-proof** and
-is not presented as if it were. `src/storage/scoreRules.ts` rejects the obvious nonsense: a
+is not presented as if it were. `api/_scoring.ts` rejects the obvious nonsense: a
 speed nobody has typed, an accuracy above 1, and a KPM that does not match the stations
 claimed in the time claimed. The server stamps its own timestamp so nobody wins a tie by
 claiming to have played in 1970, and submissions are rate limited per address.
@@ -132,7 +132,8 @@ Without credentials the endpoint reports itself unavailable, the menu shows loca
 only, and nothing breaks. To turn it on:
 
 1. In the Vercel dashboard, open the project → **Storage** → create an **Upstash for
-   Redis** database and connect it to the project.
+   Redis** database and connect it to the project. London (lhr1) matches where the
+   function runs.
 2. That sets `KV_REST_API_URL` and `KV_REST_API_TOKEN` (older integrations use
    `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`; either pair works).
 3. Redeploy.
