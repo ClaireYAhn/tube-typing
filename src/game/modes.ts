@@ -10,8 +10,9 @@
 import { allStations, circleLoop, getLine, getStation, getStations, lines, shuffle } from '../data/network.ts'
 import { lineColor, type ColorScheme } from '../data/lineColors.ts'
 import type { Line, LineId, Station, StationId } from '../data/types.ts'
+import { dailyRecordKey, describeJourney, todaysJourney, type DailyJourney } from './daily.ts'
 
-export type ModeId = 'circle-loop' | 'line-run' | 'random-sprint' | 'tube-challenge'
+export type ModeId = 'circle-loop' | 'line-run' | 'random-sprint' | 'tube-challenge' | 'daily'
 
 export interface ModeSelection {
   mode: ModeId
@@ -19,6 +20,8 @@ export interface ModeSelection {
   lineId?: LineId
   /** Line Run only; defaults to the line's longest route. */
   routeId?: string
+  /** Daily only; defaults to today's. Passed explicitly so tests can pin a date. */
+  journey?: DailyJourney
 }
 
 export interface BuiltRun {
@@ -35,6 +38,12 @@ export interface BuiltRun {
    * station's first line instead.
    */
   lineId: LineId | null
+  /**
+   * The line ridden between each consecutive pair of queued stations, where the run
+   * follows a real journey across more than one line. The map colours the route by this
+   * so a change of line is visible as a change of colour rather than being invisible.
+   */
+  segmentLines?: LineId[]
 }
 
 export const SPRINT_MS = 60_000
@@ -116,6 +125,24 @@ export function buildRun(
         recordKey: 'random-sprint',
         accentColor: accent('victoria'),
         lineId: null,
+      }
+    }
+
+    case 'daily': {
+      const journey = selection.journey ?? todaysJourney()
+      return {
+        queue: getStations(journey.route),
+        title: 'Daily journey',
+        subtitle: `${describeJourney(journey)} · ${journey.transfers} ${
+          journey.transfers === 1 ? 'change' : 'changes'
+        }`,
+        timeLimitMs: null,
+        recordKey: dailyRecordKey(journey),
+        // The line it sets off on, so the accent matches the first stretch of the map.
+        accentColor: accent(journey.legs[0]?.lineId ?? 'elizabeth'),
+        // Not a single-line run: the route crosses lines, so the map draws it per leg.
+        lineId: null,
+        segmentLines: journey.segmentLines,
       }
     }
 

@@ -1,51 +1,64 @@
 /**
- * The daily journey: one puzzle a day, the same one for everybody.
+ * The daily journey: one route a day, the same one for everybody, typed end to end.
  *
- * Everything here is a pure function of a date string, so two people opening the site in
- * London and Seoul get the same pair of stations and can compare how they did. That is
- * the whole reason the puzzle is generated rather than stored: no server, no content to
- * publish, and it works offline.
+ * This is a typing challenge rather than a quiz. An earlier version asked the player to
+ * work out which stations lay between two ends, which turned out to be the wrong question
+ * twice over: nobody can name Maryland or Seven Kings from memory, and anyone outside
+ * London cannot name the lines either. Showing the route and asking only for speed is
+ * what the game has always been, and it means a friend who has never been to London can
+ * play the same daily as a commuter.
  *
- * The date is taken in UTC rather than the viewer's timezone. A local date would hand
- * friends in different countries different puzzles, which defeats the point of sharing
- * one. UTC also keeps the rollover at a fixed moment rather than sweeping around the
- * world.
+ * Because everyone types exactly the same stations in the same order, time and KPM are
+ * directly comparable, which is what makes a shared daily leaderboard meaningful.
+ *
+ * Everything here is a pure function of a date string, so there is no server, no content
+ * to publish, and it works offline. The date is UTC rather than local: a local date would
+ * hand friends in London and Seoul different routes and leave them nothing to compare.
  */
 
 import { allStations, getStation } from '../data/network.ts'
-import type { StationId } from '../data/types.ts'
+import type { LineId, StationId } from '../data/types.ts'
 import { sharedGraph, type Graph } from '../routing/graph.ts'
-import { findJourney, stationsOf, type SearchResult } from '../routing/search.ts'
+import { findJourney, stationsOf } from '../routing/search.ts'
+import type { Leg } from '../routing/types.ts'
 
-export interface DailyPuzzle {
+export interface DailyJourney {
   /** `YYYY-MM-DD`, UTC. Also the seed and the leaderboard key. */
   date: string
   from: StationId
   to: StationId
-  /** The cheapest route, which is what the guess budget is measured against. */
-  optimal: SearchResult
-  /** Stations on that route, ends included. */
+  /** Every station to type, in order, both ends included. */
   route: StationId[]
-  /** Stations the player actually has to name, so the route minus the two ends. */
-  toName: number
+  /** The journey broken into single-line stretches, for the map and the description. */
+  legs: Leg[]
+  /**
+   * The line ridden between each pair of consecutive stations, so
+   * `segmentLines[i]` covers `route[i]` to `route[i + 1]`. The map colours by this.
+   */
+  segmentLines: LineId[]
   transfers: number
 }
 
 /**
- * What makes a puzzle worth playing.
+ * What makes a route worth typing.
  *
- * Too short and it is one obvious hop; too long and it is a typing chore rather than a
- * question about the network. At least one change is required because a single-line
- * journey only asks you to read a line in order, where a change asks you to know how the
- * network fits together, which is the interesting thing.
+ * Long enough to be a run rather than a warm-up, short enough that a daily is a minute
+ * and not a chore. At around thirteen characters a station, twenty stations is roughly a
+ * minute at a comfortable speed. At least one change so the map has something to do and
+ * the route is a journey rather than a stretch of one line.
+ *
+ * `MIN_LEG_STOPS` exists because the cheapest path sometimes changes line to ride a
+ * single stop and then changes straight back. That is a real route and Dijkstra is right
+ * to find it, but it reads as a mistake to anyone who knows the network, and it makes a
+ * mess of the coloured map for one hop's worth of track.
  */
-const MIN_TO_NAME = 4
-const MAX_TO_NAME = 11
+const MIN_STATIONS = 15
+const MAX_STATIONS = 25
 const MIN_TRANSFERS = 1
-const MAX_TRANSFERS = 2
+const MAX_TRANSFERS = 3
+const MIN_LEG_STOPS = 2
 
-/** Attempts before the constraints are relaxed. Comfortably more than ever needed. */
-const ATTEMPTS = 400
+const ATTEMPTS = 600
 
 export function dateKey(at: Date = new Date()): string {
   return at.toISOString().slice(0, 10)
@@ -54,8 +67,8 @@ export function dateKey(at: Date = new Date()): string {
 /**
  * A small, fast, deterministic PRNG.
  *
- * `Math.random` cannot be used for any of this: the puzzle has to come out identical on
- * every machine, and identical again tomorrow if someone reopens yesterday's date.
+ * `Math.random` cannot be used for any of this: the route has to come out identical on
+ * every machine, and identical again if someone reopens the same date tomorrow.
  */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0
@@ -76,46 +89,42 @@ function hash(text: string): number {
   return h >>> 0
 }
 
-interface Constraints {
-  minToName: number
-  maxToName: number
+interface Limits {
+  minStations: number
+  maxStations: number
   minTransfers: number
   maxTransfers: number
 }
 
-const IDEAL: Constraints = {
-  minToName: MIN_TO_NAME,
-  maxToName: MAX_TO_NAME,
+const IDEAL: Limits = {
+  minStations: MIN_STATIONS,
+  maxStations: MAX_STATIONS,
   minTransfers: MIN_TRANSFERS,
   maxTransfers: MAX_TRANSFERS,
 }
 
-/**
- * Widened constraints, used only if the ideal ones somehow find nothing. Keeps the
- * function total: a day must always have a puzzle, even a mediocre one.
- */
-const FALLBACK: Constraints = {
-  minToName: 2,
-  maxToName: 20,
+/** Widened, used only if the ideal limits somehow find nothing. Keeps the day playable. */
+const FALLBACK: Limits = {
+  minStations: 8,
+  maxStations: 40,
   minTransfers: 0,
-  maxTransfers: 4,
+  maxTransfers: 5,
 }
 
-function fits(result: SearchResult, route: StationId[], limits: Constraints): boolean {
-  const toName = route.length - 2
-  return (
-    toName >= limits.minToName &&
-    toName <= limits.maxToName &&
-    result.journey.transfers >= limits.minTransfers &&
-    result.journey.transfers <= limits.maxTransfers
-  )
+/** One entry per hop, so the map can colour each stretch of track separately. */
+function segmentsOf(legs: readonly Leg[]): LineId[] {
+  const lines: LineId[] = []
+  for (const leg of legs) {
+    for (let i = 0; i < leg.stops; i++) lines.push(leg.lineId)
+  }
+  return lines
 }
 
-export function puzzleFor(date: string, graph: Graph = sharedGraph()): DailyPuzzle {
+export function journeyFor(date: string, graph: Graph = sharedGraph()): DailyJourney {
   const random = mulberry32(hash(`tube-typing:${date}`))
   const pool = allStations
 
-  const search = (limits: Constraints): DailyPuzzle | null => {
+  const search = (limits: Limits): DailyJourney | null => {
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
       const from = pool[Math.floor(random() * pool.length)]
       const to = pool[Math.floor(random() * pool.length)]
@@ -125,59 +134,58 @@ export function puzzleFor(date: string, graph: Graph = sharedGraph()): DailyPuzz
       if (!result) continue
 
       const route = stationsOf(result)
-      if (!fits(result, route, limits)) continue
+      const transfers = result.journey.transfers
+      if (route.length < limits.minStations || route.length > limits.maxStations) continue
+      if (transfers < limits.minTransfers || transfers > limits.maxTransfers) continue
+
+      if (result.journey.legs.some((leg) => leg.stops < MIN_LEG_STOPS)) continue
+
+      const segmentLines = segmentsOf(result.journey.legs)
+      // A mismatch would mean the map colours the wrong stretch, so refuse rather than
+      // draw something misleading.
+      if (segmentLines.length !== route.length - 1) continue
 
       return {
         date,
         from: from.id,
         to: to.id,
-        optimal: result,
         route,
-        toName: route.length - 2,
-        transfers: result.journey.transfers,
+        legs: result.journey.legs,
+        segmentLines,
+        transfers,
       }
     }
     return null
   }
 
-  const puzzle = search(IDEAL) ?? search(FALLBACK)
-  if (puzzle) return puzzle
+  const journey = search(IDEAL) ?? search(FALLBACK)
+  if (journey) return journey
 
-  // Unreachable with a connected network, but a thrown error on the menu would be a far
-  // worse failure than a dull puzzle.
-  const from = pool[0]
-  const to = pool[pool.length - 1]
-  const result = findJourney(graph, from.id, to.id)!
+  // Unreachable on a connected network, but a thrown error on the menu would be a much
+  // worse failure than a dull route.
+  const result = findJourney(graph, 'morden', 'high-barnet')!
   const route = stationsOf(result)
   return {
     date,
-    from: from.id,
-    to: to.id,
-    optimal: result,
+    from: route[0],
+    to: route[route.length - 1],
     route,
-    toName: Math.max(0, route.length - 2),
+    legs: result.journey.legs,
+    segmentLines: segmentsOf(result.journey.legs),
     transfers: result.journey.transfers,
   }
 }
 
-export function todaysPuzzle(graph: Graph = sharedGraph()): DailyPuzzle {
-  return puzzleFor(dateKey(), graph)
+export function todaysJourney(graph: Graph = sharedGraph()): DailyJourney {
+  return journeyFor(dateKey(), graph)
 }
 
-/**
- * How many stations the player may name before the run ends.
- *
- * The optimal count plus a margin, so a route that is one station off the best still wins
- * and only a genuinely lost player runs out. Travle does the same thing, and it is what
- * keeps the puzzle a question rather than an exam.
- */
-export const GUESS_MARGIN = 4
-
-export function guessBudget(puzzle: DailyPuzzle): number {
-  return puzzle.toName + GUESS_MARGIN
+/** `Wanstead → Goodmayes`, for headings and share text. */
+export function describeJourney(journey: DailyJourney): string {
+  return `${getStation(journey.from).name} → ${getStation(journey.to).name}`
 }
 
-/** `Heathrow Terminal 5 → Epping`, for headings and share text. */
-export function describePuzzle(puzzle: DailyPuzzle): string {
-  return `${getStation(puzzle.from).name} → ${getStation(puzzle.to).name}`
+/** The board this day's runs are ranked on. Match mode matters; see `boardKey`. */
+export function dailyRecordKey(journey: DailyJourney): string {
+  return `daily:${journey.date}`
 }

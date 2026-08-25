@@ -8,7 +8,7 @@ import { formatAccuracy, formatDuration, formatWpm } from '../engine/scoring.ts'
 import { accentVars, lineVars } from '../game/contrast.ts'
 import { MODES, type ModeId, type ModeSelection } from '../game/modes.ts'
 import { boardKey } from '../storage/leaderboard.ts'
-import { guessBudget, todaysPuzzle } from '../game/daily.ts'
+import { dailyRecordKey, todaysJourney } from '../game/daily.ts'
 import { getStation } from '../data/network.ts'
 import type { Progress } from '../storage/progress.ts'
 import { useBoards } from '../hooks/useBoards.ts'
@@ -44,13 +44,13 @@ export function MenuScreen({
 
   // Reloaded whenever the punctuation toggle moves, because the two modes keep separate
   // boards and showing a lenient table under a strict heading would be a lie.
-  const boards = useBoards(boardKey('random-sprint', matchMode))
   const [scope, setScope] = useState<Scope>('global')
 
   // Today is the landing tab. The daily journey is the thing there is a reason to come
   // back for, and burying it under a grid of practice modes would waste that.
   const [tab, setTab] = useState<'today' | 'practice'>('today')
-  const puzzle = todaysPuzzle()
+  const journey = todaysJourney()
+  const boards = useBoards(boardKey(dailyRecordKey(journey), matchMode))
   const shown = scope === 'global' ? boards.global : boards.local
 
   function recordFor(key: string) {
@@ -135,21 +135,35 @@ export function MenuScreen({
       {tab === 'today' ? (
         <>
           <section className="daily">
-            <p className="daily__date">Daily journey · {puzzle.date}</p>
+            <p className="daily__date">Daily journey · {journey.date}</p>
             <h2 className="daily__route">
-              <span className="daily__station">{getStation(puzzle.from).name}</span>
+              <span className="daily__station">{getStation(journey.from).name}</span>
               <span className="daily__arrow" aria-label="to">→</span>
-              <span className="daily__station">{getStation(puzzle.to).name}</span>
+              <span className="daily__station">{getStation(journey.to).name}</span>
             </h2>
+            {/* The lines it runs on, in order, so the route reads as a journey before
+                you start rather than as a list of names. */}
+            <ul className="daily__legs">
+              {journey.legs.map((leg, i) => (
+                <li key={i} className="daily__leg">
+                  <span
+                    className="daily__leg-swatch"
+                    style={{ background: lines.find((l) => l.id === leg.lineId)?.color }}
+                  />
+                  {lines.find((l) => l.id === leg.lineId)?.name}
+                  <b>{leg.stops}</b>
+                </li>
+              ))}
+            </ul>
             <p className="daily__meta">
-              {puzzle.toName} stations to name · {puzzle.transfers}{' '}
-              {puzzle.transfers === 1 ? 'change' : 'changes'} · {guessBudget(puzzle)} guesses
+              {journey.route.length} stations · {journey.transfers}{' '}
+              {journey.transfers === 1 ? 'change' : 'changes'}
             </p>
             <button type="button" className="button button--primary" onClick={onStartJourney}>
-              Plan the journey
+              Type the journey
             </button>
             <p className="daily__note">
-              Everyone gets the same journey today. Name the stations in between.
+              Everyone gets the same journey today. No London knowledge needed, just speed.
             </p>
           </section>
 
@@ -160,7 +174,7 @@ export function MenuScreen({
           ALLOWED_BOARDS. */}
       <section className="menu__scores">
         <h2 className="menu__scores-heading">
-          Random Sprint high scores
+          Today's fastest
           <span className="menu__scores-mode">{matchMode === 'strict' ? 'Strict' : 'Lenient'}</span>
         </h2>
         <ScopeTabs
@@ -173,8 +187,8 @@ export function MenuScreen({
           board={shown}
           emptyMessage={
             scope === 'global'
-              ? 'Nobody has posted a score yet. Run a sprint and be the first.'
-              : 'Nothing on this browser yet. Run a sprint and put your name up.'
+              ? "Nobody has run today's journey yet. Be the first."
+              : 'You have not run this one yet.'
           }
         />
       </section>

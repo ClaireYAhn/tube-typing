@@ -21,6 +21,26 @@ time limit, memorising running order, and how strictly punctuation is judged.
 | **Line Run** | A line end to end. Branching lines (Northern has 8 routes, DLR 5) let you pick one. |
 | **Random Sprint** | 60 seconds, random stations. |
 | **Tube Challenge** | All 337 stations, saved as you go. Named after the [real Tube Challenge](https://en.wikipedia.org/wiki/Tube_Challenge). |
+| **Daily journey** | One real route a day, the same one for everybody, typed end to end. |
+
+## The daily journey
+
+`src/game/daily.ts` generates one route a day from the date alone, so it is a pure
+function: no server, nothing to publish, and it works offline. The date is UTC rather than
+local, or friends in London and Seoul would get different routes and have nothing to
+compare.
+
+It was briefly a Travle-style puzzle where you guessed the stations in between. That was
+the wrong question twice over. Nobody can name Maryland or Seven Kings from memory, and
+anyone outside London cannot name the lines either, so it stopped being a typing game and
+became a quiz that only a Londoner could pass. Showing the route and asking for speed is
+what the game has always been, and it means everyone types exactly the same thing, which
+is what makes a shared daily leaderboard mean anything.
+
+Routes are rejection-sampled against a band: 15 to 25 stations, one to three changes, and
+no leg shorter than two stops. That last rule exists because the cheapest path sometimes
+changes line to ride a single stop and changes straight back, which is a real route and
+reads as a bug. Over a year the generator repeats itself exactly once, 63 days apart.
 
 ## Punctuation: lenient vs strict
 

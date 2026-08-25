@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import { FreeRoamScreen } from './components/FreeRoamScreen.tsx'
 import { GameScreen } from './components/GameScreen.tsx'
-import { JourneyScreen } from './components/JourneyScreen.tsx'
 import { MenuScreen } from './components/MenuScreen.tsx'
 import { ProgressScreen } from './components/ProgressScreen.tsx'
 import { ResultModal } from './components/ResultModal.tsx'
@@ -11,9 +10,13 @@ import { type SessionState } from './engine/session.ts'
 import { lineColor } from './data/lineColors.ts'
 import type { StationId } from './data/types.ts'
 import { buildRun, type BuiltRun, type ModeSelection } from './game/modes.ts'
-import { summariseJourney, summariseRoam, summariseSession, type RunSummary } from './game/summary.ts'
-import { todaysPuzzle, type DailyPuzzle } from './game/daily.ts'
-import { type JourneyState } from './engine/journey.ts'
+import {
+  dailyShareText,
+  summariseRoam,
+  summariseSession,
+  type RunSummary,
+} from './game/summary.ts'
+import { todaysJourney } from './game/daily.ts'
 import { useColorScheme } from './hooks/useColorScheme.ts'
 import { useProgress } from './hooks/useProgress.ts'
 import { boardKey } from './storage/leaderboard.ts'
@@ -30,7 +33,6 @@ type View =
   | { name: 'picker' }
   | { name: 'game'; run: BuiltRun; selection: ModeSelection; runId: number }
   | { name: 'roam'; start: StationId; runId: number }
-  | { name: 'journey'; puzzle: DailyPuzzle; runId: number }
 
 /**
  * The result is an overlay, not a view: the finished run stays mounted behind it so the
@@ -76,13 +78,6 @@ export default function App() {
     [challenge, scheme, runId],
   )
 
-  const startJourney = useCallback(() => {
-    const nextId = runId + 1
-    setRunId(nextId)
-    setResult(null)
-    setView({ name: 'journey', puzzle: todaysPuzzle(), runId: nextId })
-  }, [runId])
-
   const startRoam = useCallback(
     (stationId: StationId) => {
       const nextId = runId + 1
@@ -103,6 +98,7 @@ export default function App() {
           current.run.title,
           current.run.accentColor,
           current.run.lineId,
+          current.run.segmentLines,
         )
         const candidate: BestRecord = {
           wpm: summary.wpm,
@@ -126,8 +122,14 @@ export default function App() {
         }
 
         const selection = current.selection
+        // Only the daily has something worth pasting into a chat: it is the one run
+        // everybody does identically, so the numbers mean the same thing to all of them.
+        const shared =
+          selection.mode === 'daily'
+            ? { ...summary, share: dailyShareText(selection.journey ?? todaysJourney(), summary) }
+            : summary
         setResult({
-          summary,
+          summary: shared,
           isBest,
           previous,
           boardKey: boardKey(current.run.recordKey, matchMode),
@@ -175,22 +177,6 @@ export default function App() {
     [update, matchMode, scheme, startRoam],
   )
 
-  const finishJourney = useCallback(
-    (state: JourneyState) => {
-      const accent = lineColor(state.puzzle.optimal.journey.legs[0]?.lineId ?? 'elizabeth', scheme)
-      // No board and no personal best: everyone plays the same journey once, so the
-      // share text is the comparison and there is nothing to beat tomorrow.
-      setResult({
-        summary: summariseJourney(state, accent),
-        isBest: false,
-        previous: null,
-        boardKey: null,
-        replay: startJourney,
-      })
-    },
-    [scheme, startJourney],
-  )
-
   const screen = renderScreen()
 
   return (
@@ -221,7 +207,7 @@ export default function App() {
           matchMode={matchMode}
           onMatchModeChange={setMatchMode}
           onStart={start}
-          onStartJourney={startJourney}
+          onStartJourney={() => start({ mode: 'daily' })}
           onShowProgress={() => setView({ name: 'progress' })}
         />
       )
@@ -252,16 +238,6 @@ export default function App() {
           run={view.run}
           matchMode={matchMode}
           onFinish={finishSession}
-        />
-      )
-
-    case 'journey':
-      return (
-        <JourneyScreen
-          key={view.runId}
-          puzzle={view.puzzle}
-          matchMode={matchMode}
-          onFinish={finishJourney}
         />
       )
 

@@ -47,7 +47,14 @@ export function GameScreen({ run, matchMode, onFinish }: Props) {
   // line it has just pulled into.
   const routeLineId = run.lineId
   const trainLineId = run.lineId ?? station?.lines[0] ?? null
-  const color = run.accentColor
+  // On a route that crosses lines the train wears the line it is currently riding, so
+  // its waist band changes colour at the interchange along with the track.
+  const segmentLineId = run.segmentLines?.[Math.max(0, state.position - 1)] ?? null
+  // On a multi-line route the accent follows the leg too, so the board along the bottom
+  // is always the colour of the line you are actually on. Leaving it fixed meant sitting
+  // at Euston on a black Northern line stretch with a purple Elizabeth board underneath.
+  const color =
+    (segmentLineId ? lineMap.get(segmentLineId)?.color : undefined) ?? run.accentColor
   const ink = inkOn(color)
 
   return (
@@ -72,7 +79,8 @@ export function GameScreen({ run, matchMode, onFinish }: Props) {
           position={state.position}
           progress={nameProgress}
           activeLineId={routeLineId}
-          trainLineId={trainLineId}
+          trainLineId={segmentLineId ?? trainLineId}
+          segmentLines={run.segmentLines}
         />
 
         {state.status === 'ready' ? (

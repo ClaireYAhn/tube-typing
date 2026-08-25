@@ -101,7 +101,7 @@ export function validateScore(score: Partial<SubmittedScore>): Validation {
   return { ok: true }
 }
 
-/** Boards the API will accept. An open key space would let anyone create junk tables. */
+/** Fixed boards the API will accept. An open key space would let anyone create tables. */
 export const ALLOWED_BOARDS = new Set([
   'random-sprint:lenient',
   'random-sprint:strict',
@@ -109,6 +109,21 @@ export const ALLOWED_BOARDS = new Set([
   'circle-loop:strict',
 ])
 
+/**
+ * The daily journey gets a board per date, which cannot be enumerated ahead of time.
+ * Matching the shape instead keeps the key space bounded in practice: one key per day per
+ * match mode, and `DAILY_BOARD_TTL_SECONDS` clears them out again.
+ */
+const DAILY_BOARD = /^daily:\d{4}-\d{2}-\d{2}:(lenient|strict)$/
+
+/** Daily boards are set to expire, so the store does not grow a key a day forever. */
+export const DAILY_BOARD_TTL_SECONDS = 60 * 60 * 24 * 60
+
+export function isDailyBoard(board: string): boolean {
+  return DAILY_BOARD.test(board)
+}
+
 export function isAllowedBoard(board: unknown): board is string {
-  return typeof board === 'string' && ALLOWED_BOARDS.has(board)
+  if (typeof board !== 'string') return false
+  return ALLOWED_BOARDS.has(board) || isDailyBoard(board)
 }

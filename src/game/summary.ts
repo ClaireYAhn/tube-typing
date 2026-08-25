@@ -12,11 +12,8 @@ import { accuracy, kpm, wpm } from '../engine/scoring.ts'
 import { elapsedMs as roamElapsed, type FreeRoamState } from '../engine/freeRoam.ts'
 import { elapsedMs, troubleSpots, type SessionState } from '../engine/session.ts'
 import type { MatchMode } from '../engine/matcher.ts'
-import { elapsedMs as journeyElapsed, overPar, type JourneyState } from '../engine/journey.ts'
-import { describePuzzle } from './daily.ts'
-import { sharedGraph } from '../routing/graph.ts'
-import { findJourney } from '../routing/search.ts'
-import { formatDuration } from '../engine/scoring.ts'
+import { describeJourney, type DailyJourney } from './daily.ts'
+import { formatAccuracy, formatDuration } from '../engine/scoring.ts'
 
 export interface TroubleSpot {
   id: string
@@ -96,9 +93,22 @@ export function summariseSession(
    * through Baker Street is not riding the Metropolitan.
    */
   lineId: LineId | null,
+  /**
+   * The line ridden between each consecutive pair of queued stations, where the run
+   * follows a real journey. Given this, the lines travelled are read off the route rather
+   * than guessed from each station's first line, which on the daily journey was crediting
+   * Central and Bakerloo to a run that only ever touched the Elizabeth line and the
+   * Northern.
+   */
+  segmentLines?: readonly LineId[],
 ): RunSummary {
   const durationMs = elapsedMs(state)
-  const path = lineId ? [] : primaryLines(state.attempts.map((a) => a.stationId))
+  const path = lineId
+    ? []
+    : segmentLines
+      ? // One line per hop, so a run that stopped early only claims what it rode.
+        segmentLines.slice(0, Math.max(0, state.attempts.length - 1))
+      : primaryLines(state.attempts.map((a) => a.stationId))
   return {
     title,
     headline: HEADLINE[state.finishReason ?? 'completed'],
@@ -170,83 +180,21 @@ export function summariseRoam(
 // --- the daily journey ------------------------------------------------------
 
 /**
- * The daily puzzle's result.
+ * Share text for the daily.
  *
- * Scored against par rather than against the clock. Everyone gets the same journey, so
- * "how many stations did it take you" is the comparable number and speed is incidental.
+ * Everyone types the same route, so the time and the accuracy are the whole comparison
+ * and there is nothing to hide: unlike a puzzle, saying how fast you were gives nothing
+ * away to someone who has not played yet.
  */
-export function summariseJourney(state: JourneyState, accentColor: string): RunSummary {
-  const durationMs = journeyElapsed(state)
-  const won = state.status === 'won'
-  const over = overPar(state)
-
-  return {
-    title: 'Daily journey',
-    headline: won
-      ? over === 0
-        ? 'Perfect route'
-        : `Home in ${state.spent}`
-      : 'Route not found',
-    matchMode: state.matchMode,
-    wpm: wpm(state.correctKeys, durationMs),
-    kpm: kpm(state.correctKeys, durationMs),
-    accuracy: accuracy(state.correctKeys, state.errors),
-    durationMs,
-    stations: state.named.length,
-    errors: state.errors,
-    bestCombo: 0,
-    trouble: [],
-    // The solution's lines, in the order they are ridden.
-    linesUsed: tally(journeyLines(state)),
-    linePath: journeyLines(state),
-    accentColor,
-    // No leaderboard: a board per calendar day would be an unbounded key space, and the
-    // share text already does the job of comparing with friends.
-    scoreable: false,
-    share: shareText(state),
-  }
-}
-
-/** Lines of the route that was actually found, or of the optimal one when the run was lost. */
-function journeyLines(state: JourneyState): LineId[] {
-  const route = state.solution ?? state.puzzle.route
-  const result = findJourney(sharedGraph(), route[0], route[route.length - 1], {
-    via: new Set(route.slice(1, -1)),
-  })
-  if (!result) return []
-  const lines: LineId[] = []
-  for (const leg of result.journey.legs) {
-    for (let i = 0; i < leg.stops; i++) lines.push(leg.lineId)
-  }
-  return lines
-}
-
-/**
- * Wordle-style share text.
- *
- * One square per guess in the order they were made: filled for a station that turned out
- * to be on the finished route, hollow for a detour. That shows the shape of someone's
- * thinking without giving away a single station name, so it is safe to paste into a group
- * chat where other people have not played yet.
- */
-export function shareText(state: JourneyState): string {
-  const onRoute = new Set(state.solution ?? [])
-  const squares = state.guesses
-    .filter((guess) => guess.counted)
-    .map((guess) => (onRoute.has(guess.stationId) ? '🟩' : '⬜'))
-    .join('')
-
-  const won = state.status === 'won'
-  // Golf, not Wordle: "7/6" reads as seven guesses out of six allowed, which is the
-  // opposite of what it means. Par is the target, and going over it is the score.
-  const score = won
-    ? `${state.spent} stations (par ${state.puzzle.toName})`
-    : `Gave up (par ${state.puzzle.toName})`
-
+export function dailyShareText(journey: DailyJourney, summary: RunSummary): string {
   return [
-    `Tube Typing ${state.puzzle.date}`,
-    describePuzzle(state.puzzle),
-    `${score} · ${formatDuration(journeyElapsed(state))}`,
-    squares,
+    `Tube Typing ${journey.date}`,
+    describeJourney(journey),
+    `${journey.route.length} stations · ${journey.transfers} ${
+      journey.transfers === 1 ? 'change' : 'changes'
+    }`,
+    `${formatDuration(summary.durationMs)} · ${Math.round(summary.kpm)} kpm · ${formatAccuracy(
+      summary.accuracy,
+    )}`,
   ].join('\n')
 }

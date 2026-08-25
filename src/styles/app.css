@@ -1729,6 +1729,34 @@ dd {
   color: var(--accent);
 }
 
+/* The lines the route runs on, so it reads as a journey before you start. */
+.daily__legs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  justify-content: center;
+  margin-bottom: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.daily__leg {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.daily__leg-swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+}
+
+.daily__leg b {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
 .daily__meta {
   margin: 0 0 1.1rem;
   color: var(--text-muted);

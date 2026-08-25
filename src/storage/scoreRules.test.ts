@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_KPM,
   isAllowedBoard,
+  isDailyBoard,
   validateScore,
   type SubmittedScore,
 } from '../../api/_scoring.ts'
@@ -77,11 +78,33 @@ describe('isAllowedBoard', () => {
     expect(isAllowedBoard('random-sprint:strict')).toBe(true)
   })
 
+  it('accepts a daily board by its shape, since the dates cannot be listed', () => {
+    expect(isAllowedBoard('daily:2026-09-01:lenient')).toBe(true)
+    expect(isAllowedBoard('daily:2026-09-01:strict')).toBe(true)
+  })
+
   it('rejects anything else, so nobody can invent a table', () => {
     expect(isAllowedBoard('tube-challenge:lenient')).toBe(false)
     expect(isAllowedBoard('../../etc/passwd')).toBe(false)
     expect(isAllowedBoard('')).toBe(false)
     expect(isAllowedBoard(null)).toBe(false)
     expect(isAllowedBoard(123)).toBe(false)
+  })
+
+  it('rejects a daily board that is not a real date or mode', () => {
+    // The pattern is the only thing bounding this key space, so it has to be tight.
+    expect(isAllowedBoard('daily:2026-9-1:lenient')).toBe(false)
+    expect(isAllowedBoard('daily:whenever:lenient')).toBe(false)
+    expect(isAllowedBoard('daily:2026-09-01:cheating')).toBe(false)
+    expect(isAllowedBoard('daily:2026-09-01')).toBe(false)
+    expect(isAllowedBoard('daily::lenient')).toBe(false)
+  })
+})
+
+describe('isDailyBoard', () => {
+  it('separates the boards that need an expiry from the fixed ones', () => {
+    // Only the dated boards accumulate, so only they get a TTL set on write.
+    expect(isDailyBoard('daily:2026-09-01:lenient')).toBe(true)
+    expect(isDailyBoard('random-sprint:lenient')).toBe(false)
   })
 })

@@ -25,7 +25,14 @@
  * happy either way under `moduleResolution: bundler`, so the odd one out lives here with
  * a note rather than in the style guide.
  */
-import { compareScores, isAllowedBoard, validateScore, type ScoreEntry } from './_scoring'
+import {
+  compareScores,
+  isAllowedBoard,
+  isDailyBoard,
+  validateScore,
+  DAILY_BOARD_TTL_SECONDS,
+  type ScoreEntry,
+} from './_scoring'
 
 export const config = { runtime: 'edge' }
 
@@ -179,13 +186,21 @@ export default async function handler(request: Request): Promise<Response> {
       const member = JSON.stringify(stored)
       const key = `board:${body.board}`
 
-      const [, , members] = await redis([
+      const commands: Command[] = [
         ['ZADD', key, Math.round(stored.kpm), member],
         // Sorted sets are ascending, so the slowest sit at the bottom. Dropping
         // everything below the last KEEP ranks is what bounds the key.
         ['ZREMRANGEBYRANK', key, 0, -(KEEP + 1)],
-        ['ZREVRANGE', key, 0, KEEP - 1],
-      ])
+      ]
+      // A board per calendar day would otherwise accumulate one key a day forever.
+      // `NX` leaves an existing expiry alone rather than pushing it back on every run.
+      if (isDailyBoard(body.board)) {
+        commands.push(['EXPIRE', key, DAILY_BOARD_TTL_SECONDS, 'NX'])
+      }
+      commands.push(['ZREVRANGE', key, 0, KEEP - 1])
+
+      const results = await redis(commands)
+      const members = results[results.length - 1]
 
       const board = parseBoard(members)
       const rank = board.findIndex((e) => e.achievedAt === stored.achievedAt && e.name === stored.name)

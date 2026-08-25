@@ -55,6 +55,13 @@ interface Props {
    */
   trainLineId?: LineId | null
   /**
+   * The line ridden between each consecutive pair of `routeStationIds`, for a run that
+   * crosses lines. Given this, the route is drawn stretch by stretch in each line's own
+   * colour, so a change of line is visible as the colour changing under the train
+   * rather than being invisible.
+   */
+  segmentLines?: readonly LineId[]
+  /**
    * Extra stops to label beyond the one being typed. Zero by default: the current name is
    * already spelled out in full on the board below, so more pills only crowd the map.
    */
@@ -80,6 +87,7 @@ export function TubeMap({
   progress,
   activeLineId,
   trainLineId,
+  segmentLines,
   upcomingLabels = 0,
   candidates,
   trail,
@@ -177,7 +185,14 @@ export function TubeMap({
                 route to trace. It still leaves a trail: each stop stamped in the colour of
                 its own line, joined by a dashed hop. Dashed rather than solid because the
                 jump is a teleport, not a ride — drawing it like track would be a lie. */}
-            {activeLineId === null ? (
+            {segmentLines ? (
+              <LineRoute
+                stations={routePoints}
+                segmentLines={segmentLines}
+                position={position}
+                lineMap={lineMap}
+              />
+            ) : activeLineId === null ? (
               <SprintTrail stations={routePoints.slice(0, position + 1)} lineMap={lineMap} />
             ) : (
               <>
@@ -240,6 +255,74 @@ export function TubeMap({
  * name, exactly when you are still reading it.
  */
 const LABEL_LIFT = 46
+
+/**
+ * A route that crosses lines, drawn stretch by stretch in each line's own colour.
+ *
+ * One white casing pass under everything, then the colour, so the casings cannot eat into
+ * the strokes at the joins the way they did on the free-roam trail. Stations behind the
+ * train get their line's colour; those ahead stay grey, which is what makes progress
+ * readable at a glance on a route with three changes in it.
+ */
+function LineRoute({
+  stations,
+  segmentLines,
+  position,
+  lineMap,
+}: {
+  stations: readonly { id: StationId; point: Point; isInterchange: boolean }[]
+  segmentLines: readonly LineId[]
+  position: number
+  lineMap: ReturnType<typeof useLineMap>
+}) {
+  const hops = stations.slice(0, -1).map((station, i) => ({
+    from: station.point,
+    to: stations[i + 1].point,
+    color: lineMap.get(segmentLines[i])?.color ?? '#666',
+    done: i < position,
+  }))
+
+  return (
+    <>
+      {hops.map((hop, i) => (
+        <path
+          key={`casing-${i}`}
+          className="tube-map__casing"
+          d={roundedPath([hop.from, hop.to], CORNER_RADIUS)}
+          strokeWidth={LINE_WIDTH + 14}
+        />
+      ))}
+      {hops.map((hop, i) => (
+        <path
+          key={`ahead-${i}`}
+          className="tube-map__ahead"
+          d={roundedPath([hop.from, hop.to], CORNER_RADIUS)}
+          strokeWidth={LINE_WIDTH + 4}
+        />
+      ))}
+      {hops.map((hop, i) =>
+        hop.done ? (
+          <path
+            key={`done-${i}`}
+            className="tube-map__travelled"
+            d={roundedPath([hop.from, hop.to], CORNER_RADIUS)}
+            stroke={hop.color}
+            strokeWidth={LINE_WIDTH + 4}
+          />
+        ) : null,
+      )}
+      {stations.map((station, i) => (
+        <StationMarker
+          key={`stop-${station.id}-${i}`}
+          point={station.point}
+          done={i < position}
+          interchange={station.isInterchange}
+          color={lineMap.get(segmentLines[Math.max(0, i - 1)])?.color ?? '#666'}
+        />
+      ))}
+    </>
+  )
+}
 
 /**
  * Random Sprint's record of where it has been: every station done so far, marked in its
